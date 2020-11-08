@@ -2,10 +2,6 @@
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
-use App\booking;
-use App\lab;
-use App\test;
-use App\labs_tests;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -42,6 +38,8 @@ Route::view('/home','index');
 Route::group(['middleware'=>['RestrictAccess']],function(){
     Route::view('/dashboard','dashboard');
     Route::get('/inventory','UserController@Inventory');
+    Route::get('/invoice','UserController@sellers_invoice');
+    Route::get('/Invoice','UserController@manufacturers_invoice');
     Route::post('/addProductManufacturer','UserController@add_manufacturer_inventory');
     Route::post('/addProductSeller','UserController@add_seller_inventory');
     Route::get('/delete/{id}','UserController@delete_manufacturer_product');
@@ -50,6 +48,17 @@ Route::group(['middleware'=>['RestrictAccess']],function(){
     Route::post('confirm_quantity','UserController@confirm_quantity');
     Route::get('/grant_request/{manufacturer_product_id}/{id}','UserController@grant_request');
     Route::post('/update_selling_price','UserController@update_selling_price');
+    Route::post('/customer_details','UserController@customer_details');
+    Route::get('/item_sell/{id}','UserController@item_sell');
+    Route::post('/quantity_sold','UserController@quantity_sold');
+    Route::get('/remove_item/{seller_product_id}/{id}','UserController@remove_item');
+    Route::post('/inventory/edit_delete_seller_inventory', 'UserController@edit_delete_seller_inventory')->name('inventory.edit_delete_seller_inventory');
+    Route::post('/inventory/edit_delete_manufacturer_inventory','UserController@edit_delete_manufacturer_inventory')->name('inventory.edit_delete_manufacturer_inventory');
+    Route::get('/items_sold_customer','UserController@items_sold_customer');
+    Route::post('/store_details','UserController@store_details');
+    Route::get('/soldto/{email}','UserController@soldto');
+    Route::get('/bill','UserController@bill')->name('bill');
+    Route::get('edit_customer_details/{mobile}','UserController@edit_customer_details');
 });
 
 

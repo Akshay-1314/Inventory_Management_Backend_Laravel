@@ -715,7 +715,11 @@
             <ul class="pricingTable-firstTable_table__options">
                 <li></li>
             </ul>
-            <div class="pricingTable-firstTable_table__getstart" onclick="notifyMe()">Get Started Now</div>
+            @if(session('seller'))
+            <a href="invoice" style="text-decoration: none; color:#fff;"><div class="pricingTable-firstTable_table__getstart"> Get Started Now </div></a>
+            @else
+            <a href="Invoice" style="text-decoration: none; color:#fff;"><div class="pricingTable-firstTable_table__getstart"> Get Started Now </div></a>
+            @endif
           </li>
         </ul>
       </div>

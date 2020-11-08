@@ -10,6 +10,9 @@
     <link href='https://fonts.googleapis.com/css?family=Bangers' rel='stylesheet'>
     <!-- Font Awesome -->
     <script src="https://kit.fontawesome.com/258f31346d.js" crossorigin="anonymous"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js"></script>
+    <script src="https://markcell.github.io/jquery-tabledit/assets/js/tabledit.min.js"></script>
+    
     <title>Inventory</title>
     <link rel = "icon" href =  
         "https://mini-project-c1.github.io/Inventory-Mgmt-Front-End/logo/logo.jpg"
@@ -522,17 +525,31 @@
             font-size: 22px;
             line-height: 40px;
             }
-            #p_name,#price,#quantity,#expiry,#name_of_manufacturer,#expiry_seller,#date_of_manufacture,#production_cost,#material_cost,#update_selling_price{
-                border: none;
+            #update_selling_price{
                 border-radius: 0.8em; 
-                box-shadow: 1px 1px 10px 1px #ffcb05;
             }
             .quantity_required{
                 border-radius: 0.8em;
             }
-            #p_name:focus,#price:focus,#quantity:focus,#expiry:focus,#name_of_manufacturer:focus,#date_of_manufacture:focus,#expiry_seller:focus,.quantity_required:focus,#production_cost:focus,#material_cost:focus,#update_selling_price:focus{
+            .quantity_required:focus,#update_selling_price:focus{
                 outline: none;
                 box-shadow: 1px 1px;
+            }
+            .add-product-seller{
+            padding:2%;
+            background:#ffcc00;
+            border-radius: 10px;  
+
+            }
+            .add-product-seller input{
+                width:80%;
+                border-radius:8px;
+                text-align: center;
+                border:1px solid rgb(180,180,180);
+            }
+
+            .add-product-seller label{
+                font-weight: bolder;
             }
     </style>
 </head>
@@ -574,41 +591,27 @@
         <button class="btn btn-info request"><i class="fa fa-plus"></i> REQUEST FOR PRODUCTS</button>
     </div>
     @endif
-
-
-    <!-- Table for list of items-->
-    @if(session('seller'))
-    <section class="list-of-items">
-    @else
+    
+    @if(session('manufacturer'))
     <section class="list-of-items" style="padding-top: 50px;">
-    @endif
         <div class="container-fluid">
               <h1 class="text-center text-white mt-5 bg-dark">List of Items</h1>
               <div class="text-center">
-              <table class="table table-responsive-md table-bordered bg-warning">
+              @csrf
+              <table class="table editable_manufacturer_inventory table-responsive-md table-bordered bg-warning">
                 <thead class="text-center">
                   <tr class="display-5">
                     <th>Product ID</th>
                     <th>Product Name</th>
-                    @if(session('manufacturer'))
                     <th>Production cost</th>
                     <th>Material cost</th>
-                    @endif
                     <th>Price</th>
-                    @if(session('seller'))
-                    <th>Selling price</th>
-                    @endif
                     <th>Quantity</th>
                     <th>Date of manufacture</th>
-                    @if(session('seller'))
-                    <th>Name of manufacturer</th>
-                    @endif
                     <th>Expiry date</th>
-                    <th colspan="2">Operation</th>
                   </tr>
                 </thead>
                 <tbody class="text-center">
-                @if(!session('seller'))
                 @foreach($data as $value)
                   <tr> 
                     <td>{{$value->id}}</td>
@@ -619,75 +622,211 @@
                     <td>{{$value->quantity}}</td>
                     <td>{{$value->date_of_manufacture}}</td>
                     <td>{{$value->expiry_date}}</td>
-                    <td><i class="fa fa-pencil" id="edit" data-tippy-content="Edit" aria-hidden="true"></i></td>
-                    <td><a href="delete/{{$value->id}}"><i class="fas fa-trash-alt" id="delete" data-tippy-content="Delete"></i></a></td>
                   </tr>
                 @endforeach
-                @else
+                </tbody>
+                </table>
+              </div>
+        </div>
+        
+
+
+        <div class="add_product container rounded mt-5 mb-5">
+
+                <form class="add-product-seller" action="addProductManufacturer" method="POST" onsubmit="return validate()">
+                @csrf
+                <div class = "row">
+                    <div class="col-md col-12">
+                        <label for="Product Name">Product Name:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="text" name="pname" id="p_name" minlength="3" placeholder="Product Name" required>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Price">Production Cost:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                    <input type="number" name="production_cost" min="1" placeholder="Enter Cost" id="production_cost" required>
+                    </div>
+                </div>    
+
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Selling Price">Material Cost:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="number" name="material_cost" min="1" placeholder="Enter Cost" id="material_cost" required>
+                    </div>
+                </div>
+                    
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Quantity">Price:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="number" name="price" min="1" placeholder="Enter Price" id="price" required>
+                    </div>
+                </div>
+                    
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Date of Manufacture">Quantity:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="number" name="quantity" min="1" placeholder="Enter Quantity" id="quantity" required>
+                    </div>
+                </div>
+                    
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Expiry Date">Date of Manufacture:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <div id="date_of_m"></div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Manufacturer Name">Expiry Date:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="date" name="dom" id="expiry" required>
+                    </div>
+                </div>
+
+                <br/>
+                    <button type="submit" class="btn btn-info btn-block">ADD</button>
+                
+                </form>
+            </div>
+        
+        <div class="add_more text-center">
+            <div class="btn btn-info"> Add More <i class="fa fa-plus"></i></div>
+        </div>
+    </section>
+    @endif
+
+
+    <!-- Table for list of items-->
+    @if(session('seller'))
+    <section class="list-of-items">
+        <div class="container-fluid">
+              <h1 class="text-center text-white mt-5 bg-dark">List of Items</h1>
+              <div class="text-center">
+              @csrf
+              <table class="table editable_seller_inventory table-responsive-md table-bordered bg-warning">
+                <thead class="text-center">
+                  <tr class="display-5">
+                    <th>Product ID</th>
+                    <th>Product Name</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Date of manufacture</th>
+                    <th>Name of manufacturer</th>
+                    <th>Expiry date</th>
+                  </tr>
+                </thead>
+                <tbody class="text-center">
                 @foreach($data1 as $value)
                   <tr>
                     <td>{{$value->id}}</td>
                     <td>{{$value->product_name}}</td>
                     <td>{{$value->price}}</td>
-                    @if($value->selling_price==-1)
-                    <td><form action="update_selling_price" method="POST" onsubmit="return validate2({{$value->id}})">@csrf<input type="number" id="update_selling_price" min="1" placeholder="Selling Price" name="update_selling_price" style="max-width:150px" required> <button type="submit" class="btn btn-success"><i class="fa fa-check" aria-hidden="true"></i></button></form></td>
-                    @else
-                    <td>{{$value->selling_price}}</td>
-                    @endif
                     <td>{{$value->quantity}}</td>
                     <td>{{$value->date_of_manufacture}}</td>
                     <td>{{$value->name_of_manufacturer}}</td>
                     <td>{{$value->expiry_date}}</td>
-                    <td><i class="fa fa-pencil" id="edit" data-tippy-content="Edit" aria-hidden="true"></i></td>
-                    <td><a href="del/{{$value->id}}"><i class="fas fa-trash-alt" id="delete" data-tippy-content="Delete"></i></a></td>
                   </tr>
                 @endforeach
-                @endif
-                @if(!session('seller'))
-                  <tr class="add_product">
-                    <form class="add-product" action="addProductManufacturer" method="POST" onsubmit="return validate()">
-                    @csrf
-                        <td></td>
-                        <td><input type="text" name="pname" style="max-width:150px;" id="p_name" placeholder="Product Name" required></td>
-                        <td><input type="number" name="production_cost" style="max-width:150px" placeholder="Enter Cost" id="production_cost" required></td>
-                        <td><input type="number" name="material_cost" style="max-width:150px" placeholder="Enter Cost" id="material_cost" required></td>
-                        <td><input type="number" name="price" style="max-width:150px" placeholder="Enter Price" id="price" required></td>
-                        <td><input type="number" name="quantity" style="max-width:155px" placeholder="Enter Quantity" id="quantity" required></td>
-                        <td id="date_of_m"></td>
-                        <td><input type="date" name="dom" style="max-width:200px" id="expiry" required></td>
-                        <td colspan="2"><button type="submit" class="btn btn-info">ADD</td>
-                    </form>
-                  </tr>
-                
-                  <tr>
-                    <td colspan="10" class="add_more"><span style="cursor:pointer;"> Add More <i class="fa fa-plus"></i></span></td>
-                  </tr>
-                @else
-                  <tr class="add_product_seller">
-                    <form class="add-product-seller" action="addProductSeller" method="POST" onsubmit="return validate1()">
-                    @csrf
-                        <td></td>
-                        <td><input type="text" name="pname_seller" style="max-width:150px;" id="p_name" placeholder="Product Name" required></td>
-                        <td><input type="number" name="price_seller" style="max-width:150px" placeholder="Enter Price" id="price" required></td>
-                        <td><input type="number" name="selling_price_seller" style="max-width:150px" placeholder="Selling Price" id="price" required></td>
-                        <td><input type="number" name="quantity_seller" style="max-width:155px" placeholder="Enter Quantity" id="quantity" required></td>
-                        <td><input type="date" name="date_of_manufacture" style="max-width:200px" id="date_of_manufacture" required></td>
-                        <td><input type="text" name="name_of_manufacturer" style="max-width:200px" id="name_of_manufacturer" placeholder="Enter name" required></td>
-                        <td><input type="date" name="dom_seller" style="max-width:200px" id="expiry_seller" required></td>
-                        <td colspan="2"><button type="submit" class="btn btn-info">ADD</td>
-                    </form>
-                  </tr>
-                  <tr>
-                    <td colspan="10" class="add_more_seller"><span style="cursor:pointer;"> Add More <i class="fa fa-plus"></i></span></td>
-                  </tr>
-                @endif
-
                 </tbody>
               </table>
               </div>
         </div>
+
+
+            <div class="add_product_seller container rounded mt-5 mb-5">
+
+                <form class="add-product-seller" action="addProductSeller" method="POST" onsubmit="return validate1()">
+                @csrf
+                <div class = "row">
+                    <div class="col-md col-12">
+                        <label for="Product Name">Product Name:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="text" name="pname_seller" id="p_name" minlength="3" placeholder="Product Name" required>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Price">Price:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="number" name="price_seller" min="1" placeholder="Enter Price" id="price" required>
+                    </div>
+                </div>    
+
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Selling Price">Selling Price:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="number" name="selling_price_seller" min="1" placeholder="Enter Selling Price" id="selling_price" required>
+                    </div>
+                </div>
+                    
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Quantity">Quantity:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="number" name="quantity_seller" min="1" placeholder="Enter Quantity" id="quantity" required>
+                    </div>
+                </div>
+                    
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Date of Manufacture">Date of Manufacture:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="date" name="date_of_manufacture" id="date_of_manufacture" required>
+                    </div>
+                </div>
+                    
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Expiry Date">Expiry Date:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="date" name="dom_seller" id="expiry_seller" required>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md col-12">
+                        <label for="Manufacturer Name">Manufacturer's Name:</label>
+                    </div>
+                    <div class="col-md col-12 text-center">
+                        <input type="text" name="name_of_manufacturer" id="name_of_manufacturer" placeholder="Enter Manufacturer's Name" required>
+                    </div>
+                </div>
+
+                <br/>
+                    <button type="submit" class="btn btn-info btn-block">ADD</button>
+
+                </form>
+            </div>
+        
+            <div class="add_more_seller text-center">
+                <div class="btn btn-info"> Add More <i class="fa fa-plus"></i></div>
+            </div>
     </section>
     <!-- End of table -->
+    @endif
     
     @if(session('seller'))
     <section class="item-requests-seller" style="padding-top: 50px;">
@@ -848,16 +987,6 @@
       </div>
     @endif
 
-    @if(session('delete'))
-      <div class="alert1 alert-success">
-        <span class="fas fa-check"></span>
-        <span class="msg">Deleted Successfully!</span>
-        <div class="close-btn">
-          <span class="fas fa-times"></span>
-        </div>
-      </div>
-    @endif
-
     @if(session('confirmed'))
       <div class="alert1 alert-success">
         <span class="fas fa-check"></span>
@@ -888,7 +1017,6 @@
 
     
     <!-- Bootstrap cdn's for JavaScript and jQuery-->
-    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
     <script>
@@ -897,14 +1025,14 @@
             keyboard: false
         });
     </script>
-    <!-- jQuery cdn -->
-    <script src="https://code.jquery.com/jquery-3.5.1.js" integrity="sha256-QWo7LDvxbWT2tbbQ97B53yJnYU3WhH/C8ycbRAkjPDc=" crossorigin="anonymous"></script>
+    
     <script>
         //jQuery
         //pre-loader
         $(window).on("load",function(){
             $("#loading").fadeOut();
         });   
+        
         //jQuery
         $(document).ready(function(){
             $('.Link').css("color","#000000");
@@ -948,10 +1076,49 @@
 
             $('.add_more').click(function(){
                 $('.add_product').fadeIn(100);
+                $('.add_more').fadeOut(100);
             })
             $('.add_more_seller').click(function(){
                 $('.add_product_seller').fadeIn(100);
+                $('.add_more_seller').fadeOut(100);
             })
+            
+            $.ajaxSetup({
+                headers:{
+                'X-CSRF-Token' : $("input[name=_token]").val()
+                }
+            });
+            
+            $('.editable_seller_inventory').Tabledit({
+                url:'{{route("inventory.edit_delete_seller_inventory")}}',
+                dataType:"json",
+                columns:{
+                identifier:[0, 'id'],
+                editable:[[1, 'product_name'], [2, 'price'], [3, 'selling_price'], [4, 'quantity'], [5,'date_of_manufacture'], [6, 'name_of_manufacturer'], [7, 'expiry_date']]
+                },
+                restoreButton:false,
+                buttons: {
+                    edit: {
+                        class: 'btn btn-sm btn-info',
+                        html: '<i class="fa fa-pencil" aria-hidden="true"></i>',
+                        action: 'edit'
+                    },
+                    delete: {
+                        class: 'btn btn-sm btn-danger',
+                        html: '<i class="fa fa-trash" aria-hidden="true"></i>',
+                        action: 'delete'
+                    },
+                },
+                onSuccess:function(data, textStatus, jqXHR)
+                {
+                if(data.action == 'delete')
+                {
+                    $('#'+data.id).remove();
+                }
+                }
+            });
+
+            
             
         }); 
 
@@ -1073,21 +1240,45 @@
                 $('.alert2').addClass("hide");
                 $('.alert2').removeClass("showAlert");
             });
-
-        
+            @if(!session('seller'))
+            $.ajaxSetup({
+                headers:{
+                'X-CSRF-Token' : $("input[name=_token]").val()
+                }
+            });
+            
+        $('.editable_manufacturer_inventory').Tabledit({
+                url:'{{route("inventory.edit_delete_manufacturer_inventory")}}',
+                dataType:"json",
+                columns:{
+                identifier:[0, 'id'],
+                editable:[[1, 'product_name'], [2, 'production_cost'], [3, 'material_cost'], [4, 'price'], [5, 'quantity'], [6, 'date_of_manufacture'], [7, 'expiry_date']]
+                },
+                restoreButton:false,
+                buttons: {
+                    edit: {
+                        class: 'btn btn-sm btn-info',
+                        html: '<i class="fa fa-pencil" aria-hidden="true"></i>',
+                        action: 'edit'
+                    },
+                    delete: {
+                        class: 'btn btn-sm btn-danger',
+                        html: '<i class="fa fa-trash" aria-hidden="true"></i>',
+                        action: 'delete'
+                    },
+                },
+                onSuccess:function(data, textStatus, jqXHR)
+                {
+                if(data.action == 'delete')
+                {
+                    $('#'+data.id).remove();
+                }
+                }
+            });
+            @endif
 
 
         // tooltip for edit icon using tippy.js
-        tippy('#edit',{
-          animation: 'scale',
-          arrow: true,
-          touch: false,
-        });
-        tippy('#delete',{
-          animation: 'scale',
-          arrow: true,
-          touch: false,
-        });
         tippy('.notification',{
           content: 'Click to view requests',
           animation: 'scale',

@@ -11,6 +11,9 @@ use App\signup_seller;
 use App\manufacturer_inventory;
 use App\seller_inventory;
 use App\item_request;
+use App\items_sold_seller;
+use App\customer_detail;
+use App\items_sold_manufacturer;
 use Carbon\Carbon;
 
 class UserController extends Controller
@@ -109,6 +112,8 @@ class UserController extends Controller
         session()->forget('data');
         session()->forget('seller');
         session()->forget('manufacturer');
+        session()->forget('email');
+        session()->forget('customer_mobile');
         return redirect('/');
     }
     public function delete_manufacturers(){
@@ -118,16 +123,6 @@ class UserController extends Controller
     public function delete_sellers(){
         signup_seller::truncate();
         return("Deleted successfully");
-    }
-
-    public function delete_manufacturer_product($id){
-        manufacturer_inventory::where('id',$id)->delete();
-        return redirect('/inventory')->with('delete','Deleted!');
-    }
-
-    public function delete_seller_product($id){
-        seller_inventory::where('id',$id)->delete();
-        return redirect('/inventory')->with('delete','Deleted!');
     }
 
     public function Inventory(){
@@ -231,6 +226,19 @@ class UserController extends Controller
         $new->email = $pointer->get()[0]['sellers_email'];
         $new->save();
 
+        $new_data = new items_sold_manufacturer;
+        $new_data->product_name = $pointer->get()[0]['product_name'];
+        $new_data->quantity = $quantity_required;
+        $new_data->price = $pointer1->get()[0]['material_cost']+$pointer1->get()[0]['production_cost'];
+        $new_data->selling_price = $pointer1->get()[0]['price'];
+        $new_data->date_of_manufacture = $pointer1->get()[0]['date_of_manufacture'];
+        $new_data->name_of_manufacturer = $pointer1->get()[0]['name_of_manufacturer'];
+        $new_data->expiry_date = $pointer1->get()[0]['expiry_date'];
+        $new_data->manufacturers_email = session('manufacturer');
+        $new_data->sellers_email = $pointer->get()[0]['sellers_email'];
+        $new_data->date_of_transaction = Carbon::now()->toDateTimeString();
+        $new_data->save();
+
 
         if($quantity_available==$quantity_required)
         {
@@ -259,5 +267,243 @@ class UserController extends Controller
         $split = explode('                          ',$req->update_selling_price);
         seller_inventory::where('id',$split[1])->update(['selling_price'=>$split[0]]);
         return redirect()->back();
+    }
+
+    public function sellers_invoice(){
+        $detail = customer_detail::where(['sellers_email'=>session('seller'),'sold'=>0]);
+        $details = $detail->count();
+        if($details>0){
+            $data1 = 'customer_added';
+            session()->put('customer_mobile',$detail->get()[0]['customer_mobile']);
+        }
+        else{
+            session()->forget('customer_mobile');
+            $data1 = 'customer_not_added';
+        }
+        $data2 = $detail->get();
+        $data = seller_inventory::where('email',session('seller'))->get();
+        $data3 = items_sold_seller::where(['sellers_email'=>session('seller'),'sold'=>0])->get();
+        return view('invoice',compact('data','data1','data2','data3'));
+    }
+
+    public function customer_details(Request $req){
+        $count = customer_detail::where(['customer_mobile'=>$req->customer_mobile,'sold'=>0,'sellers_email'=>session('seller')])->count();
+        if($count!=0){
+            return redirect()->back()->with('mobile_number','same');
+        }
+        $new = new customer_detail;
+        $new->customer_name = $req->customer_name;
+        $new->customer_mobile = $req->customer_mobile;
+        $new->date_of_transaction = Carbon::now()->toDateTimeString();
+        $new->sellers_email = session('seller');
+        $new->sold = 0;
+        $new->save();
+        return redirect('/invoice');
+    }
+
+    public function item_sell($id){
+        if(items_sold_seller::where(['seller_product_id'=>$id,'sellers_email'=>session('seller'),'sold'=>0])->count()==0){
+            $sell = seller_inventory::where('id',$id)->get();
+            $new = new items_sold_seller;
+            $new->seller_product_id = $id;
+            $new->product_name = $sell[0]['product_name'];
+            $new->price = $sell[0]['price'];
+            $new->selling_price = $sell[0]['selling_price'];
+            $new->date_of_manufacture = $sell[0]['date_of_manufacture'];
+            $new->expiry_date = $sell[0]['expiry_date'];
+            $new->name_of_manufacturer = $sell[0]['name_of_manufacturer'];
+            $new->sellers_email = $sell[0]['email'];
+            $new->sold = 0;
+            $new->customer_mobile = customer_detail::where(['sellers_email'=>session('seller'),'sold'=>0])->get()[0]['customer_mobile'];
+            $new->save();
+        }
+        else{
+            return redirect()->back()->with('added','added');
+        }
+        return redirect()->back()->with('quantity',$sell[0]['quantity']);
+    }
+
+    public function quantity_sold(Request $req)
+    {
+        $quantity_required = $req->quantity_required;
+        $items = items_sold_seller::where(['quantity_sold'=>null,'sold'=>0])->get();
+        
+        $seller = seller_inventory::where('id',$items[0]['seller_product_id'])->get();
+        $quantity_available = $seller[0]['quantity'];
+
+        if($quantity_available == $quantity_required){
+            seller_inventory::where('id',$items[0]['seller_product_id'])->delete();
+            DB::table('items_sold_seller')
+            ->where(function($query)
+            {
+                    $query->where('quantity_sold', '!=', null)
+                  ->where('seller_product_id', '=', items_sold_seller::where(['quantity_sold'=>null,'sold'=>0])->get()[0]['seller_product_id']);
+            })->delete();
+        }
+        else{
+            $remaining = $quantity_available - $quantity_required;
+            seller_inventory::where('id',$items[0]['seller_product_id'])->update(['quantity'=>$remaining]);
+            $detail = items_sold_seller::where(['seller_product_id'=>$items[0]['seller_product_id'],'sold'=>0])->get();
+            foreach($detail as $value){
+                if($value->quantity_sold>$remaining){
+                    $value->delete();
+                }
+            }
+        }
+        items_sold_seller::where(['quantity_sold'=>null,'sold'=>0])->update(['quantity_sold'=>$req->quantity_required]);
+        return redirect()->back();
+    }
+
+    public function remove_item($seller_product_id,$id){
+        $seller = seller_inventory::where('id',$seller_product_id);
+        $items = items_sold_seller::where('id',$id);
+        if($seller->count()==1){
+            $seller->update(['quantity'=>$seller->get()[0]['quantity']+$items->get()[0]['quantity_sold']]);
+        }
+        else{
+            $new = new seller_inventory;
+            $new->product_name = $items->get()[0]['product_name'];
+            $new->quantity = $items->get()[0]['quantity_sold'];
+            $new->price = $items->get()[0]['price'];
+            $new->selling_price = $items->get()[0]['selling_price'];
+            $new->date_of_manufacture = $items->get()[0]['date_of_manufacture'];
+            $new->expiry_date = $items->get()[0]['expiry_date'];
+            $new->name_of_manufacturer = $items->get()[0]['name_of_manufacturer'];
+            $new->email = session('seller');
+            $new->save();
+        }
+        $items->delete();
+        return redirect()->back();
+    }
+
+    public function edit_delete_seller_inventory(Request $request)
+    {
+    	if($request->ajax())
+    	{
+    		if($request->action == 'edit')
+    		{
+    			$data = array(
+    				'product_name'	=>	$request->product_name,
+    				'quantity'		=>	$request->quantity,
+                    'price'		=>	$request->price,
+                    'selling_price'		=>	$request->selling_price,
+                    'date_of_manufacture'		=>	$request->date_of_manufacture,
+                    'expiry_date'		=>	$request->expiry_date,
+                    'name_of_manufacturer'		=>	$request->name_of_manufacturer
+                );
+                seller_inventory::where('id',$request->id)->update($data);
+    		}
+    		if($request->action == 'delete')
+    		{
+    			seller_inventory::where('id',$request->id)->delete();
+    		}
+    		return response()->json($request);
+    	}
+    }
+
+    public function edit_delete_manufacturer_inventory(Request $request)
+    {
+    	if($request->ajax())
+    	{
+    		if($request->action == 'edit')
+    		{
+    			$data = array(
+    				'product_name'	=>	$request->product_name,
+                    'production_cost'		=>	$request->production_cost,
+                    'material_cost'		=>	$request->material_cost,
+                    'quantity'        =>  $request->quantity,
+                    'price'		=>	$request->price,
+                    'date_of_manufacture'		=>	$request->date_of_manufacture,
+                    'expiry_date'		=>	$request->expiry_date
+                );
+                manufacturer_inventory::where('id',$request->id)->update($data);
+                DB::table('item_requests')
+                ->where(function($query)
+                {
+                    $query->where('manufacturer_product_id', '=', $request->id)
+                    ->where('quantity', '>', $request->quantity);
+                })->delete();
+    		}
+    		if($request->action == 'delete')
+    		{
+                manufacturer_inventory::where('id',$request->id)->delete();
+                item_request::where('manufacturer_product_id',$request->id)->delete();
+    		}
+    		return response()->json($request);
+    	}
+    }
+
+    public function items_sold_customer(){
+            items_sold_seller::where(['sellers_email'=>session('seller'),'sold'=>0])->update(['sold'=>1]);
+            customer_detail::where(['sellers_email'=>session('seller'),'sold'=>0])->update(['sold'=>1]);
+            $detail = DB::table('items_sold_seller')
+                    ->select('*')
+                    ->join('customer_details', function ($join) {
+                        $join->on('items_sold_seller.customer_mobile', '=', 'customer_details.customer_mobile')->groupBy('items_sold_seller.product_name'); 
+                    })
+                    ->where(['items_sold_seller.sold'=>1,'customer_details.sold'=>1,'customer_details.customer_mobile'=>session('customer_mobile')]);
+            $details = $detail->get();
+            
+            foreach($details as $value)
+            {
+                $customer_name = $value->customer_name;
+                $customer_mobile = $value->customer_mobile;
+                $date = $value->date_of_transaction;
+                break;
+            }
+
+            $amount = 0;
+            $quantity_sold = 0;
+            $count = 0;
+            foreach($details as $value){
+                $amount = $amount + $value->quantity_sold*$value->selling_price;
+                $quantity_sold = $quantity_sold + $value->quantity_sold;
+                $count = $count + 1;
+            }
+            return view('bill',compact('details','count','quantity_sold','amount','customer_name','customer_mobile','date'));
+    }
+    
+    public function store_details(Request $req){
+        $store_name = $req->store_name;
+        $store_details = $req->address;
+        return redirect()->back()->with(['store_name'=>$store_name,'store_details'=>$store_details]);
+    }
+
+    public function manufacturers_invoice(){
+        session()->forget('email');
+        $data = DB::table('items_sold_manufacturer')
+        ->select('sellers_email')
+        ->join('signup_sellers', function ($join) {
+            $join->on('items_sold_manufacturer.sellers_email', '=', 'signup_sellers.email'); 
+        })->where('items_sold_manufacturer.manufacturers_email',session('manufacturer'))->distinct('signup_sellers.email')->get();
+        $detail = array();
+        foreach($data as $value){
+            $detail[signup_seller::where('email',$value->sellers_email)->get()[0]['full_name']] = items_sold_manufacturer::where(['manufacturers_email'=>session('manufacturer'),'sellers_email'=>$value->sellers_email])->get()->count();
+        }
+        $email = array();
+        $i = 1;
+        foreach($data as $value){
+            $email[$i] = $value->sellers_email;
+            $i = $i+1;
+        }
+        return view('invoice',compact('detail','email'));
+    }
+
+    public function soldto($email){
+        session()->put('email',$email);
+        return redirect()->route('bill');
+    }
+    public function bill(){
+        $email =  session()->get('email');
+        $details = items_sold_manufacturer::where(['sellers_email'=>$email,'manufacturers_email'=>session('manufacturer')])->get();
+        $customer_name = signup_seller::where('email',$email)->get()[0]['full_name'];
+        $count = $details->count();
+        $quantity_sold = 0;
+        $amount = 0;
+        foreach($details as $value){
+            $quantity_sold = $quantity_sold + $value->quantity;
+            $amount = $amount + $value->quantity*$value->selling_price;
+        }
+        return view('bill',compact('details','count','quantity_sold','amount','customer_name'));
     }
 }
